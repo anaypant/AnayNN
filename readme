@@ -1,9 +1,21 @@
-The AnayModel will be a class where you can create a neural network easily
+AnayModel - updated January 2023
 
-Goals of the model:
+Goals for this version --
+Implement a New AnayModel which is a module network
+Goes from just one neural network class to more modular features
+Original one is just the lite version
 
-be able to create a neural network where you specify the layers you want
-Give the network training and testing data if required
-train the model
-plotting data using matplotlib
-loading and saving model, can be used at later times.
+Name of the Game -- Flexibility
+We want the user to have as much flexibility and ease in understanding and writing an extremely basic neural network
+
+What we want:
+
+object = Model()
+object.add(m.Input(784))
+object.add(m.)
+
+
+
+What we got done today:
+Added layers which can do dot product multiplication with other dense layers
+don't really know where we are heading, let's do linear multiplication right now and get a hella basic feedforward for our model

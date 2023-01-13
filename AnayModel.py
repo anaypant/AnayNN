@@ -21,6 +21,7 @@ class mlp:
         self.__activationSet.add('linear')
         self.__activationSet.add('softmax')
         self.__activationSet.add('tanh')
+        self.__activationSet.add('log_softmax')
 
         # Hidden/Output Neurons - This is saved for forward passes but is not initialized right now
         self.__hidden = None
@@ -73,6 +74,16 @@ class mlp:
             t = np.reshape(t, (len(t), len(t[0])))
             return t
         # ----------------------------------------------------
+        elif self.__activations[layerId] == 'log_softmax':
+            if deriv:
+                x * (1 - x)
+            t = []
+            for z in x:
+                c = z.max()
+                logsumexp = np.log(np.exp(z-c).sum())
+                t.append((z-c-logsumexp).tolist())
+            t = np.reshape(t, (len(t), len(t[0])))
+            return t
         else:
             # This should never be reached
             raise BaseException("Core: activation for layer " +
@@ -236,7 +247,10 @@ class mlp:
             # print(self.__adjustments)
             # print(self.__weights)
             # figure out the validation scores
-            validation_score = self.__validate(tX, tY)
+            if self.__shape[-1] != 1:
+                validation_score = self.__validate(tX, tY)
+            else:
+                validation_score = self.__validate(tX, tY, regression=True)
             if pBar:
                 if (iteration+1)//iters_per_block == current_block_index+1:
                     blockMsg = blockMsg[:current_block_index] + \
@@ -385,7 +399,7 @@ class mlp:
                     if results[z][w] != y[z][w]:
                         num_correct -= 1
                         break
-            elif regresission and np.round(results[z]).astype('uint8') == y[z]:
+            elif regression and np.round(results[z]).astype('uint8') == y[z]:
                 num_correct += 1
         return round(float(num_correct/num_trials), 3)
 
@@ -419,3 +433,7 @@ class mlp:
         self.__weights = d['w']
         self.__activations = d['acts']
         self.__shape = d['shape']
+
+
+if __name__ == "__main__":
+    test = mlp()
