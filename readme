@@ -1,2 +1,9 @@
-Simple Neural Network Framework to handle different networks - modeled after George Hotz's tinygrad
-Attempting to create this framework from scratch - more of a learning project to understand how to build a network properly
+The AnayModel will be a class where you can create a neural network easily
+
+Goals of the model:
+
+be able to create a neural network where you specify the layers you want
+Give the network training and testing data if required
+train the model
+plotting data using matplotlib
+loading and saving model, can be used at later times.
