@@ -10,12 +10,20 @@ We want the user to have as much flexibility and ease in understanding and writi
 
 What we want:
 
-object = Model()
-object.add(m.Input(784))
-object.add(m.)
-
-
+object = Module()
+object.add(Layer(784,128))
+object.add(ReLU())
+object.add(Layer((128, 10)))
+object.add(LogSoftmax())
 
 What we got done today:
 Added layers which can do dot product multiplication with other dense layers
 don't really know where we are heading, let's do linear multiplication right now and get a hella basic feedforward for our model
+
+
+Day 2:
+Get a neural network which can feed forward using layers
+This will mean adding a feedforward function to make each layer in the model
+Model will have a list of activations for each layer, which will be an activation function
+
+What will the inputs be? We want a 2d array that will be given into a class. This class can be called a tensor as it will hold the constructs for any 2d-matrix multiplication

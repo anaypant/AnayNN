@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
+from keras.datasets import mnist
+import math
 
 
 class mlp:
@@ -21,7 +23,7 @@ class mlp:
         self.__activationSet.add('linear')
         self.__activationSet.add('softmax')
         self.__activationSet.add('tanh')
-        self.__activationSet.add('log_softmax')
+        # self.__activationSet.add('log_softmax')
 
         # Hidden/Output Neurons - This is saved for forward passes but is not initialized right now
         self.__hidden = None
@@ -76,7 +78,7 @@ class mlp:
         # ----------------------------------------------------
         elif self.__activations[layerId] == 'log_softmax':
             if deriv:
-                x * (1 - x)
+                return x * (1 - x)
             t = []
             for z in x:
                 c = z.max()
@@ -115,7 +117,12 @@ class mlp:
         n = len(self.__shape) - 1
         a = self.__shape[n-1]
         b = self.__shape[n]
-        self.__weights.append(2 * np.random.random((a, b)) - 1)
+
+        # re-initialize the weights properly
+        lower, upper = -(1.0 / math.sqrt(a)), (1.0 / math.sqrt(b))
+        self.__weights.append(
+            [[lower + np.random.random() * (upper-lower) for i in range(b)]
+             for j in range(a)])
 
         # add the activation for this layer
         self.__activations.append(activation)
@@ -143,6 +150,41 @@ class mlp:
             else:
                 self.__hidden.append(self.__activate(
                     np.dot(self.__hidden[i-1], self.__weights[i]), i))
+
+    def __backward_pass_with_crossentropy(self, x, y, learningRate=1, momentum=None):
+        if self.__outputs is None:
+            raise BaseException(
+                "Core: Outputs not initiated before backwards pass")
+        self.__errors = []
+        self.__adjustments = []
+        counter = len(self.__shape) - 2  # This is for weights, activations
+        for i in range(len(self.__shape) - 1):
+            if i == 0:
+                # THIS SHOULD ALWAYS WORK
+                self.__cost = self.outputs - y
+                self.__errors.append(self.__cost)
+                self.__cost = - \
+                    np.mean(np.sum(y * np.log(self.__outputs+1e-15), axis=1))
+                if(self.__activationSet[counter] == 'softmax'):
+                    self.__adjustments.append(
+                        self.__hidden[counter-1].T.dot(self.__errors[0]))
+                else:
+                    self.__adjustments.append(
+                        self.__hidden[counter-1].T.dot(self.__errors[i] * self.__activate(self.__outputs, counter, deriv=True)))
+
+            else:
+                self.__errors.append(
+                    self.__adjustments[i-1].dot(self.__weights[counter+1].T))
+                self.__adjustments.append(
+                    self.__hidden[counter-1].T.dot(self.__errors[i] * self.__activate(self.__hidden[counter], counter, deriv=True)))
+
+            if i == len(self.__shape) - 2:
+                self.__weights[counter] -= learningRate * \
+                    self.__adjustments[i]
+            else:
+                self.__weights[counter] -= learningRate * self.__adjustments[i]
+
+            counter -= 1
 
     def __backward_pass(self, x, y, learningRate=1, momentum=None):
         # Get the losses for each layer
@@ -185,7 +227,7 @@ class mlp:
 
             counter -= 1
 
-    def fit(self, x, y, trialX, trialY, iterations, learningRate=1, pBar=True, plot=False, validation_clip=1.0):
+    def fit(self, x, y, trialX, trialY, iterations, learningRate=1, pBar=True, plot=False, validation_clip=1.0, batch_fitting=True):
         # -------------------- Make sure that x matches the shape of our weights
         # X has to be a 2d array
         if not type(x) == list and type(x[0]) == list:
@@ -220,7 +262,6 @@ class mlp:
         y = np.reshape(y, (len(y), self.__shape[-1]))
         tX = np.reshape(trialX, (len(trialX), self.__shape[0]))
         tY = np.reshape(trialY, (len(trialY), self.__shape[-1]))
-
         # right now idc about iterations lets do one pass
         if pBar:
             num_blocks = 20
@@ -241,9 +282,14 @@ class mlp:
             pvY = []
 
         for iteration in range(iterations):
+
+            if not batch_fitting:
+                pass
+
             self.__forward_pass(x)
-            #if iteration<3:print(self.__outputs[0:2])
-            self.__backward_pass(x, y, learningRate=learningRate)
+            #self.__backward_pass(x, y, learningRate=learningRate)
+            self.__backward_pass_with_crossentropy(
+                x, y, learningRate=learningRate)
             # print(self.__adjustments)
             # print(self.__weights)
             # figure out the validation scores
@@ -436,4 +482,34 @@ class mlp:
 
 
 if __name__ == "__main__":
-    test = mlp()
+    (X_train, y_train), (X_test, y_test) = mnist.load_data()
+
+    X_train = X_train.astype(np.float32)
+    X_test = X_test.astype(np.float32)
+    old_X_train = X_train
+    old_X_test = X_test
+
+    X_train = []
+    X_test = []
+
+    for x in range(len(old_X_train)):
+        old_X_train[x] /= 255.0
+        X_train.append(old_X_train[x].flatten())
+
+    for x in range(len(old_X_test)):
+        old_X_test[x] /= 255.0
+        X_test.append(old_X_test[x].flatten())
+
+    X_test = np.array(X_test)
+    X_train = np.array(X_train)
+
+    num_classes = 10
+    y_train = np.eye(num_classes)[y_train.astype(int)]
+    y_test = np.eye(num_classes)[y_test.astype(int)]
+
+    model = mlp()
+    model.addInputLayer(784)
+    model.addDenseLayer(100, 'tanh')
+    model.addDenseLayer(10, 'softmax')
+    model.fit(X_train, y_train, X_test, y_test,
+              100, learningRate=1e-3, plot=True)

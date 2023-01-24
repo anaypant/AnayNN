@@ -68,7 +68,7 @@ class Dense(Layer):
                 # a and b should always be same length
                 for l in range(len(a)):
                     c[i][j] += a[l] * b[l]
-        return t
+        return t  # This is a 2d array, we want to convert this into a Tensor
 
     def __repr__(self):
         return "Dense layer dims. (" + str(self.shape[0]) + "," + str(self.shape[1]) + ")"
@@ -86,10 +86,8 @@ class Module:
 
 if __name__ == "__main__":
     np.random.seed(1)
-    l1 = Dense((3, 3))
-    l2 = Dense((3, 3))
     a = Module()
     a.add(Dense((3, 3)))
     a.add(Dense((3, 8)))
-
-    print(a.layers)
+    print(a.layers[0].Mul(a.layers[1]))
+    # print(a.layers)

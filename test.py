@@ -1,24 +1,12 @@
-import numpy as np
+import AnayModel
 
+testX = [[1, 0, 1], [0, 1, 0], [0, 1, 1], [1, 0, 0], [0, 0, 0]]
+testY = [[1], [1], [1], [1], [0]]
+trialX = [[1, 1, 1], [1, 1, 0]]
+trialY = [[0], [0]]
 
-def log_softmax(x, deriv=False):
-    if deriv:
-        return x * (1 - x)
-    t = []
-    for z in x:
-        c = z.max()
-        logsumexp = np.log(np.exp(z-c).sum())
-        t.append((z-c-logsumexp).tolist())
-    t = np.reshape(t, (len(t), len(t[0])))
-    return t
-
-
-def log_softmax_2(x):
-    c = x.max()
-    logsumexp = np.log(np.exp(x - c).sum())
-    return x - c - logsumexp
-
-
-a = [np.array([0.1, 0.9])]
-print(log_softmax(a[0], deriv=True))
-print(log_softmax_2(a[0]))
+mlp = AnayModel.mlp()
+mlp.addInputLayer(3)
+mlp.addDenseLayer(4, 'sigmoid')
+mlp.addDenseLayer(1, 'sigmoid')
+mlp.fit(testX, testY, trialX, trialY, 1)
