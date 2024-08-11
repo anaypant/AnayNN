@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
-from keras.datasets import mnist
+# from keras.datasets import mnist
 import math
 
 
@@ -120,9 +120,7 @@ class mlp:
 
         # re-initialize the weights properly
         lower, upper = -(1.0 / math.sqrt(a)), (1.0 / math.sqrt(b))
-        self.__weights.append(
-            [[lower + np.random.random() * (upper-lower) for i in range(b)]
-             for j in range(a)])
+        self.__weights.append(2 * np.random.random((a,b))-1)
 
         # add the activation for this layer
         self.__activations.append(activation)
@@ -157,34 +155,20 @@ class mlp:
                 "Core: Outputs not initiated before backwards pass")
         self.__errors = []
         self.__adjustments = []
-        counter = len(self.__shape) - 2  # This is for weights, activations
+        for i in range(len(self.__shape)-1, 0, -1):
+            if i == len(self.__shape) - 1:
+                self.__errors.insert(0, self.__outputs - y)
+                self.__adjustments.insert(0, self.__errors[0] * learningRate * self.__activate(self.__outputs, -1, True))
+                self.__cost = np.mean(np.abs(self.__errors))
+            else:
+                self.__errors.insert(0, self.__adjustments[0].dot(self.__weights[i].T))
+                self.__adjustments.insert(0, self.__errors[0] * learningRate * self.__activate(self.__hidden[i-2], i, True))
+            
         for i in range(len(self.__shape) - 1):
             if i == 0:
-                # THIS SHOULD ALWAYS WORK
-                self.__cost = self.outputs - y
-                self.__errors.append(self.__cost)
-                self.__cost = - \
-                    np.mean(np.sum(y * np.log(self.__outputs+1e-15), axis=1))
-                if(self.__activationSet[counter] == 'softmax'):
-                    self.__adjustments.append(
-                        self.__hidden[counter-1].T.dot(self.__errors[0]))
-                else:
-                    self.__adjustments.append(
-                        self.__hidden[counter-1].T.dot(self.__errors[i] * self.__activate(self.__outputs, counter, deriv=True)))
-
+                self.__weights[i] -= np.dot(x.T, self.__adjustments[i])
             else:
-                self.__errors.append(
-                    self.__adjustments[i-1].dot(self.__weights[counter+1].T))
-                self.__adjustments.append(
-                    self.__hidden[counter-1].T.dot(self.__errors[i] * self.__activate(self.__hidden[counter], counter, deriv=True)))
-
-            if i == len(self.__shape) - 2:
-                self.__weights[counter] -= learningRate * \
-                    self.__adjustments[i]
-            else:
-                self.__weights[counter] -= learningRate * self.__adjustments[i]
-
-            counter -= 1
+                self.__weights[i] -= np.dot(self.__hidden[i-1].T, self.__adjustments[i])
 
     def __backward_pass(self, x, y, learningRate=1, momentum=None):
         # Get the losses for each layer
@@ -227,7 +211,7 @@ class mlp:
 
             counter -= 1
 
-    def fit(self, x, y, trialX, trialY, iterations, learningRate=1, pBar=True, plot=False, validation_clip=1.0, batch_fitting=True):
+    def fit(self, x, y, iterations, trialX=None, trialY=None , learningRate=1, pBar=True, plot=False, validation_clip=1.0, batch_fitting=True):
         # -------------------- Make sure that x matches the shape of our weights
         # X has to be a 2d array
         if not type(x) == list and type(x[0]) == list:
@@ -244,24 +228,27 @@ class mlp:
             raise TypeError("x samples length " + str(len(x)) +
                             " does not match y samples length " + str(len(y)))
 
-        if not type(trialX) == list and type(trialX[0]) == list:
-            raise TypeError("Validation X is not a 2d array")
-        if len(trialX[0]) != self.__shape[0]:
-            raise BaseException(
-                "Dimensions of samples in trialX do not match size " + str(self.__shape[0]))
-        if not type(trialY) == list and type(trialY[0] == list):
-            raise TypeError("Validation Y is not a 2d array")
-        if len(trialY) != len(trialX):
-            raise TypeError("Validation X length " + str(len(trialX)) +
-                            " does not match Validation Y length " + str(len(trialY)))
-        if len(trialY[0]) != self.__shape[-1]:
-            raise BaseException(
-                "Dimensions of samples in trialY do not match size " + str(self.__shape[-1]))
+        if trialX is not None and trialY is not None:
+            if not type(trialX) == list and type(trialX[0]) == list:
+                raise TypeError("Validation X is not a 2d array")
+            if len(trialX[0]) != self.__shape[0]:
+                raise BaseException(
+                    "Dimensions of samples in trialX do not match size " + str(self.__shape[0]))
+            if not type(trialY) == list and type(trialY[0] == list):
+                raise TypeError("Validation Y is not a 2d array")
+            if len(trialY) != len(trialX):
+                raise TypeError("Validation X length " + str(len(trialX)) +
+                                " does not match Validation Y length " + str(len(trialY)))
+            if len(trialY[0]) != self.__shape[-1]:
+                raise BaseException(
+                    "Dimensions of samples in trialY do not match size " + str(self.__shape[-1]))
+            tX = np.reshape(trialX, (len(trialX), self.__shape[0]))
+            tY = np.reshape(trialY, (len(trialY), self.__shape[-1]))
+
+
 
         x = np.reshape(x, (len(x), self.__shape[0]))
         y = np.reshape(y, (len(y), self.__shape[-1]))
-        tX = np.reshape(trialX, (len(trialX), self.__shape[0]))
-        tY = np.reshape(trialY, (len(trialY), self.__shape[-1]))
         # right now idc about iterations lets do one pass
         if pBar:
             num_blocks = 20
@@ -293,10 +280,16 @@ class mlp:
             # print(self.__adjustments)
             # print(self.__weights)
             # figure out the validation scores
-            if self.__shape[-1] != 1:
-                validation_score = self.__validate(tX, tY)
+
+            if trialX is not None and trialY is not None:
+
+                if self.__shape[-1] != 1:
+                    validation_score = self.__validate(tX, tY)
+                else:
+                    validation_score = self.__validate(tX, tY, regression=True)
             else:
-                validation_score = self.__validate(tX, tY, regression=True)
+                validation_score = "N/A"
+
             if pBar:
                 if (iteration+1)//iters_per_block == current_block_index+1:
                     blockMsg = blockMsg[:current_block_index] + \
@@ -310,29 +303,34 @@ class mlp:
                 if len(costRounded) < rD+2:
                     for z in range(rD+2 - len(costRounded)):
                         costRounded += " "
-                vScoreRounded = str(round(validation_score, rDV))
-                if len(vScoreRounded) < rDV+2:
-                    for z in range(rDV+2-len(vScoreRounded)):
-                        vScoreRounded += " "
+                
+                if type(validation_score) != str:
+                    vScoreRounded = str(round(validation_score, rDV))
+                    if len(vScoreRounded) < rDV+2:
+                        for z in range(rDV+2-len(vScoreRounded)):
+                            vScoreRounded += " "
+                else:
+                    vScoreRounded = validation_score
 
                 print("Progress: " + "|"+blockMsg+"|    Cost: " + costRounded +
-                      " Val: " + vScoreRounded + " i="+str(iteration), end="\r")
+                      " Val: " + vScoreRounded + " i="+str(iteration+1), end="\r")
             if plot:
                 pX.append(iteration)
                 pY.append(self.__cost)
                 pvY.append(validation_score)
 
-            if validation_score > validation_clip:
-                # return out of the function
-                print("Training terminated to exceeded clip score of " +
-                      str(validation_clip) + "at i=" + str(iteration))
-                return
+            if type(validation_score) != str:
+                if validation_score > validation_clip:
+                    # return out of the function
+                    print("Training terminated to exceeded clip score of " +
+                        str(validation_clip) + "at i=" + str(iteration))
+                    return
 
         if pBar:
             print()
         if plot:
             plt.plot(pX, pY)
-            plt.plot(pX, pvY)
+            if type(validation_score) != str: plt.plot(pX, pvY)
             plt.ylim(-1.0, 1.0)
             plt.show()
 
@@ -481,35 +479,3 @@ class mlp:
         self.__shape = d['shape']
 
 
-if __name__ == "__main__":
-    (X_train, y_train), (X_test, y_test) = mnist.load_data()
-
-    X_train = X_train.astype(np.float32)
-    X_test = X_test.astype(np.float32)
-    old_X_train = X_train
-    old_X_test = X_test
-
-    X_train = []
-    X_test = []
-
-    for x in range(len(old_X_train)):
-        old_X_train[x] /= 255.0
-        X_train.append(old_X_train[x].flatten())
-
-    for x in range(len(old_X_test)):
-        old_X_test[x] /= 255.0
-        X_test.append(old_X_test[x].flatten())
-
-    X_test = np.array(X_test)
-    X_train = np.array(X_train)
-
-    num_classes = 10
-    y_train = np.eye(num_classes)[y_train.astype(int)]
-    y_test = np.eye(num_classes)[y_test.astype(int)]
-
-    model = mlp()
-    model.addInputLayer(784)
-    model.addDenseLayer(100, 'tanh')
-    model.addDenseLayer(10, 'softmax')
-    model.fit(X_train, y_train, X_test, y_test,
-              100, learningRate=1e-3, plot=True)
