@@ -211,7 +211,7 @@ class mlp:
 
             counter -= 1
 
-    def fit(self, x, y, iterations, trialX=None, trialY=None , learningRate=1, pBar=True, plot=False, validation_clip=1.0, batch_fitting=True):
+    def fit(self, x, y, iterations:int, trialX=None, trialY=None , learningRate=1, pBar=True, plot=False, validation_clip=1.0, batch_fitting=True):
         # -------------------- Make sure that x matches the shape of our weights
         # X has to be a 2d array
         if not type(x) == list and type(x[0]) == list:

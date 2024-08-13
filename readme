@@ -27,3 +27,12 @@ This will mean adding a feedforward function to make each layer in the model
 Model will have a list of activations for each layer, which will be an activation function
 
 What will the inputs be? We want a 2d array that will be given into a class. This class can be called a tensor as it will hold the constructs for any 2d-matrix multiplication
+
+
+# module
+
+#layers
+
+#loss
+
+#backpropagation
